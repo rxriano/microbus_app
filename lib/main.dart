@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
@@ -12,12 +13,16 @@ Future<void> main() async {
   runApp(MicrobusApp(store, trip));
 }
 
-ThemeData _theme(Brightness b) => ThemeData(
-      useMaterial3: true,
-      colorSchemeSeed: const Color(0xFFFFB300), // taxi yellow
-      brightness: b,
-      appBarTheme: const AppBarTheme(centerTitle: true),
-    );
+ThemeData _theme(Brightness b, ColorScheme? dyn) => ThemeData(
+  useMaterial3: true,
+  // Falls back to the system font until the Cairo font files are added.
+  fontFamily: 'Cairo',
+  colorScheme: dyn ??
+      ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFFB300), // taxi yellow
+          brightness: b),
+  appBarTheme: const AppBarTheme(centerTitle: true),
+);
 
 class MicrobusApp extends StatelessWidget {
   final AppStore store;
@@ -26,17 +31,20 @@ class MicrobusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: store,
-        builder: (context, _) => MaterialApp(
+    listenable: store,
+    builder: (context, _) => DynamicColorBuilder(
+        builder: (ColorScheme? light, ColorScheme? darkScheme) => MaterialApp(
           debugShowCheckedModeBanner: false,
           themeMode: store.dark ? ThemeMode.dark : ThemeMode.light,
-          theme: _theme(Brightness.light),
-          darkTheme: _theme(Brightness.dark),
+          theme: _theme(Brightness.light,
+              store.materialYou ? light?.harmonized() : null),
+          darkTheme: _theme(Brightness.dark,
+              store.materialYou ? darkScheme?.harmonized() : null),
           builder: (c, child) =>
               Directionality(textDirection: TextDirection.rtl, child: child!),
           home: TripScreen(store, trip),
-        ),
-      );
+        )),
+  );
 }
 
 class TripScreen extends StatefulWidget {
@@ -84,6 +92,7 @@ class _TripScreenState extends State<TripScreen> {
     if (s.status(n) == SeatStatus.empty) return;
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           if (s.status(n) == SeatStatus.awaitingChange)
@@ -144,20 +153,20 @@ class _TripScreenState extends State<TripScreen> {
                 if (s.arrived(n))
                   const Text('وصل',
                       style:
-                          TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 if (s.groupLabel(n) != null)
                   Text(s.groupLabel(n)!, style: const TextStyle(fontSize: 10)),
                 if (badge != null)
                   Container(
                     margin: const EdgeInsets.only(top: 2),
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8)),
                     child: Text(badge,
                         style:
-                            const TextStyle(fontSize: 11, color: Colors.black)),
+                        const TextStyle(fontSize: 11, color: Colors.black)),
                   ),
               ]),
             ),
@@ -168,93 +177,98 @@ class _TripScreenState extends State<TripScreen> {
   }
 
   Widget _cabin() => Directionality(
-        textDirection: TextDirection.ltr, // keep the driver on the left
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          padding: const EdgeInsets.all(8),
+    textDirection: TextDirection.ltr, // keep the driver on the left
+    child: Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade600, width: 3),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(children: [
+        Container(
+          height: 14,
+          margin: const EdgeInsets.fromLTRB(24, 0, 24, 6),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade600, width: 3),
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(children: [
-            Container(
-              height: 14,
-              margin: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-              decoration: BoxDecoration(
-                  color: Colors.blueGrey.withAlpha(60),
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            for (final row in kHiace)
-              Expanded(
-                child: Row(children: [
-                  for (final n in row)
-                    Expanded(
-                      flex: n == 0 ? 1 : 2,
-                      child: n == 0
-                          ? const SizedBox()
-                          : n == -1
-                              ? const Center(
-                                  child: Icon(Icons.sports_motorsports,
-                                      size: 36, color: Colors.grey))
-                              : _seat(n),
-                    ),
-                ]),
-              ),
-          ]),
+              color: Colors.blueGrey.withAlpha(60),
+              borderRadius: BorderRadius.circular(10)),
         ),
-      );
+        for (final row in kHiace)
+          Expanded(
+            child: Row(children: [
+              for (final n in row)
+                Expanded(
+                  flex: n == 0 ? 1 : 2,
+                  child: n == 0
+                      ? const SizedBox()
+                      : n == -1
+                      ? const Center(
+                      child: Icon(Icons.sports_motorsports,
+                          size: 36, color: Colors.grey))
+                      : _seat(n),
+                ),
+            ]),
+          ),
+      ]),
+    ),
+  );
 
   Widget _stat(String label, int v, Color c) => Expanded(
-        child: Container(
-          margin: const EdgeInsets.all(3),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-              color: c.withAlpha(45), borderRadius: BorderRadius.circular(10)),
-          child: Column(children: [
-            Text(label, style: const TextStyle(fontSize: 12)),
-            Text('$v',
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          ]),
-        ),
-      );
+    child: Container(
+      margin: const EdgeInsets.all(3),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+          color: c.withAlpha(45), borderRadius: BorderRadius.circular(10)),
+      child: Column(children: [
+        Text(label, style: const TextStyle(fontSize: 12)),
+        Text('$v',
+            style:
+            const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      ]),
+    ),
+  );
 
-  Widget _summary() => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-        child: Column(children: [
-          if (widget.store.driverName.isNotEmpty ||
-              widget.store.plateLetters.isNotEmpty ||
-              widget.store.plateDigits.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                PlateView(
-                    letters: widget.store.plateLetters,
-                    digits: widget.store.plateDigits,
-                    scale: 0.6),
-                const SizedBox(width: 10),
-                Text(widget.store.driverName,
-                    style: const TextStyle(fontSize: 16)),
-              ]),
-            ),
-          Text(
-            s.running
-                ? 'المحطة الحالية: ${s.stations[s.current]}'
-                : 'وضع التحميل',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _summary() => Card(
+    elevation: 0,
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    child: Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(children: [
+        if (widget.store.driverName.isNotEmpty ||
+            widget.store.plateLetters.isNotEmpty ||
+            widget.store.plateDigits.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              PlateView(
+                  letters: widget.store.plateLetters,
+                  digits: widget.store.plateDigits,
+                  scale: 0.6),
+              const SizedBox(width: 10),
+              Text(widget.store.driverName,
+                  style: const TextStyle(fontSize: 16)),
+            ]),
           ),
-          Row(children: [
-            _stat('الإجمالي', s.expected, Colors.indigo),
-            _stat('اتحصّل (معاك)', s.cashInHand, Colors.green),
-            _stat('المتبقي', s.remaining, Colors.red),
-          ]),
-          if (s.pendingChange > 0)
-            Text('باقي للركاب: ${s.pendingChange}',
-                style: const TextStyle(fontSize: 13)),
-          Text('إجمالي اليوم: ${s.dayTotal + s.paidFares}',
-              style: const TextStyle(fontSize: 12)),
+        Text(
+          s.running
+              ? 'المحطة الحالية: ${s.stations[s.current]}'
+              : 'وضع التحميل',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        Row(children: [
+          _stat('الإجمالي', s.expected, Colors.indigo),
+          _stat('اتحصّل (معاك)', s.cashInHand, Colors.green),
+          _stat('المتبقي', s.remaining, Colors.red),
         ]),
-      );
+        if (s.pendingChange > 0)
+          Text('باقي للركاب: ${s.pendingChange}',
+              style: const TextStyle(fontSize: 13)),
+        Text('إجمالي اليوم: ${s.dayTotal + s.paidFares}',
+            style: const TextStyle(fontSize: 12)),
+      ]),
+    ),
+  );
 
   Future<void> _pickStation() async {
     final i = await showDialog<int>(
@@ -283,93 +297,105 @@ class _TripScreenState extends State<TripScreen> {
   }
 
   Widget _controls() => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        child: s.running
-            ? Column(mainAxisSize: MainAxisSize.min, children: [
-                if (s.selected.isNotEmpty)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.payments),
-                      label: Text('دفع / تحديد وجهة (${s.selected.length})'),
-                      onPressed: () => showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (_) => PaySheet(s),
-                      ),
-                    ),
-                  ),
-                Row(children: [
-                  OutlinedButton(
-                      onPressed:
-                          s.current > 0 ? () => s.goTo(s.current - 1) : null,
-                      child: const Text('السابقة')),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: s.current < s.stations.length - 1
-                          ? () => s.goTo(s.current + 1)
-                          : null,
-                      onLongPress: _pickStation,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('المحطة الجاية',
-                            style: TextStyle(fontSize: 18)),
-                      ),
-                    ),
-                  ),
-                ]),
-              ])
-            : Row(children: [
-                OutlinedButton(
-                    onPressed: () => s.fillAll(kHiace),
-                    child: const Text('العربية مليانة')),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: s.occupied > 0 ? s.depart : null,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('تحرّك', style: TextStyle(fontSize: 18)),
-                    ),
-                  ),
-                ),
-              ]),
-      );
+    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+    child: s.running
+        ? Column(mainAxisSize: MainAxisSize.min, children: [
+      if (s.selected.isNotEmpty)
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.payments),
+            label: Text('دفع / تحديد وجهة (${s.selected.length})'),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => PaySheet(s),
+            ),
+          ),
+        ),
+      Row(children: [
+        FilledButton.tonal(
+            onPressed:
+            s.current > 0 ? () => s.goTo(s.current - 1) : null,
+            child: const Text('السابقة')),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton(
+            onPressed: s.current < s.stations.length - 1
+                ? () => s.goTo(s.current + 1)
+                : null,
+            onLongPress: _pickStation,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('المحطة الجاية',
+                  style: TextStyle(fontSize: 18)),
+            ),
+          ),
+        ),
+      ]),
+    ])
+        : Row(children: [
+      FilledButton.tonal(
+          onPressed: () => s.fillAll(kHiace),
+          child: const Text('العربية مليانة')),
+      const SizedBox(width: 8),
+      Expanded(
+        child: FilledButton(
+          onPressed: s.occupied > 0 ? s.depart : null,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('تحرّك', style: TextStyle(fontSize: 18)),
+          ),
+        ),
+      ),
+    ]),
+  );
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: Listenable.merge([s, widget.store]),
-        builder: (context, _) => Scaffold(
-          appBar: AppBar(
-            title: Text('${s.stations.first} إلى ${s.stations.last}'),
-            actions: [
-              IconButton(
-                tooltip: 'الوضع الداكن',
-                icon: Icon(widget.store.dark ? Icons.light_mode : Icons.dark_mode),
-                onPressed: () => widget.store.setDark(!widget.store.dark),
-              ),
-              IconButton(
-                  tooltip: 'الإعدادات',
-                  icon: const Icon(Icons.settings),
-                  onPressed: _openSettings),
-              PopupMenuButton<String>(
-                onSelected: (v) => s.newTrip(reverse: v == 'rev'),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'new', child: Text('رحلة جديدة')),
-                  PopupMenuItem(
-                      value: 'rev', child: Text('رحلة جديدة (اقلب الاتجاه)')),
-                ],
-              ),
+    listenable: Listenable.merge([s, widget.store]),
+    builder: (context, _) => Scaffold(
+      appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ProfileScreen(widget.store))),
+            child: AvatarView(photoB64: widget.store.photoB64, radius: 18),
+          ),
+        ),
+        title: Text('${s.stations.first} إلى ${s.stations.last}'),
+        actions: [
+          IconButton(
+            tooltip: 'الوضع الداكن',
+            icon: Icon(widget.store.dark ? Icons.light_mode : Icons.dark_mode),
+            onPressed: () => widget.store.setDark(!widget.store.dark),
+          ),
+          IconButton(
+              tooltip: 'الإعدادات',
+              icon: const Icon(Icons.settings),
+              onPressed: _openSettings),
+          PopupMenuButton<String>(
+            onSelected: (v) => s.newTrip(reverse: v == 'rev'),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'new', child: Text('رحلة جديدة')),
+              PopupMenuItem(
+                  value: 'rev', child: Text('رحلة جديدة (اقلب الاتجاه)')),
             ],
           ),
-          body: Column(children: [
-            _summary(),
-            Expanded(child: _cabin()),
-            _controls(),
-          ]),
-        ),
-      );
+        ],
+      ),
+      body: Column(children: [
+        _summary(),
+        Expanded(child: _cabin()),
+        _controls(),
+      ]),
+    ),
+  );
 }
 
 // Payment / destination sheet for the currently selected seats.
@@ -478,7 +504,7 @@ class _PaySheetState extends State<PaySheet> {
           const SizedBox(height: 8),
           Text('المطلوب: $due',
               style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           if (given > 0 && given < due)
             Text('ناقص ${due - given}',
                 style: const TextStyle(color: Colors.red, fontSize: 16)),
@@ -487,13 +513,13 @@ class _PaySheetState extends State<PaySheet> {
                 style: const TextStyle(color: Colors.green, fontSize: 16)),
           const SizedBox(height: 8),
           Row(children: [
-            OutlinedButton(
+            FilledButton.tonal(
               onPressed: allSet
                   ? () {
-                      s.saveDests(
-                          {for (final e in dests.entries) e.key: e.value!});
-                      Navigator.pop(context);
-                    }
+                s.saveDests(
+                    {for (final e in dests.entries) e.key: e.value!});
+                Navigator.pop(context);
+              }
                   : null,
               child: const Text('حفظ الوجهة بدون دفع'),
             ),
@@ -502,10 +528,10 @@ class _PaySheetState extends State<PaySheet> {
               child: FilledButton(
                 onPressed: canPay
                     ? () {
-                        s.pay({for (final e in dests.entries) e.key: e.value!},
-                            given);
-                        Navigator.pop(context);
-                      }
+                  s.pay({for (final e in dests.entries) e.key: e.value!},
+                      given);
+                  Navigator.pop(context);
+                }
                     : null,
                 child: const Text('تأكيد الدفع'),
               ),

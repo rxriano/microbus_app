@@ -37,11 +37,11 @@ class Line {
       {'id': id, 'name': name, 'stations': stations, 'fares': fares};
 
   factory Line.fromJson(Map<String, dynamic> j) => Line(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        stations: List<String>.from(j['stations'] as List),
-        fares: Map<String, int>.from(j['fares'] as Map),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    stations: List<String>.from(j['stations'] as List),
+    fares: Map<String, int>.from(j['fares'] as Map),
+  );
 
   // DEMO values: edit them from the settings screen.
   static Line demo() {
@@ -76,8 +76,13 @@ class AppStore extends ChangeNotifier {
   String driverName = '';
   String plateLetters = '';
   String plateDigits = '';
+  String phone = '';
+  String phone2 = '';
+  String photoB64 = ''; // stored under its own key
+  bool materialYou = false;
 
   AppStore(this.prefs) {
+    photoB64 = prefs.getString('photo') ?? '';
     final raw = prefs.getString('settings');
     if (raw != null) {
       try {
@@ -91,6 +96,9 @@ class AppStore extends ChangeNotifier {
         driverName = (j['driverName'] as String?) ?? '';
         plateLetters = (j['plateLetters'] as String?) ?? '';
         plateDigits = (j['plateDigits'] as String?) ?? '';
+        phone = (j['phone'] as String?) ?? '';
+        phone2 = (j['phone2'] as String?) ?? '';
+        materialYou = (j['materialYou'] as bool?) ?? false;
       } catch (_) {
         lines = [];
       }
@@ -100,6 +108,17 @@ class AppStore extends ChangeNotifier {
   }
 
   Line get line => lines[selected];
+
+  void setPhoto(String b64) {
+    photoB64 = b64;
+    prefs.setString('photo', b64);
+    notifyListeners();
+  }
+
+  void setMaterialYou(bool v) {
+    materialYou = v;
+    notifyListeners();
+  }
 
   void setDark(bool v) {
     dark = v;
@@ -121,6 +140,9 @@ class AppStore extends ChangeNotifier {
         'driverName': driverName,
         'plateLetters': plateLetters,
         'plateDigits': plateDigits,
+        'phone': phone,
+        'phone2': phone2,
+        'materialYou': materialYou,
       }),
     );
   }
@@ -399,8 +421,8 @@ class TripState extends ChangeNotifier {
       for (final g in j['groups'] as List) {
         final m = g as Map<String, dynamic>;
         groups[m['id'] as int] =
-            PayGroup(m['id'] as int, m['given'] as int, m['due'] as int)
-              ..changeDone = m['changeDone'] as bool;
+        PayGroup(m['id'] as int, m['given'] as int, m['due'] as int)
+          ..changeDone = m['changeDone'] as bool;
       }
       current = (j['current'] as int).clamp(0, stations.length - 1).toInt();
     } catch (_) {

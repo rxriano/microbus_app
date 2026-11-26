@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 String toArabicDigits(String s) {
@@ -51,6 +52,40 @@ class PlateView extends StatelessWidget {
           ]),
         ]),
       ),
+    );
+  }
+}
+
+// Arabic-Indic / Persian digits -> Latin (for storage and validation).
+String toLatinDigits(String s) {
+  const east = '٠١٢٣٤٥٦٧٨٩';
+  const persian = '۰۱۲۳۴۵۶۷۸۹';
+  return s.split('').map((c) {
+    var i = east.indexOf(c);
+    if (i < 0) i = persian.indexOf(c);
+    return i < 0 ? c : '$i';
+  }).join();
+}
+
+class AvatarView extends StatelessWidget {
+  final String photoB64;
+  final double radius;
+  const AvatarView({super.key, required this.photoB64, this.radius = 20});
+
+  @override
+  Widget build(BuildContext context) {
+    ImageProvider? img;
+    if (photoB64.isNotEmpty) {
+      try {
+        img = MemoryImage(base64Decode(photoB64));
+      } catch (_) {
+        img = null;
+      }
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundImage: img,
+      child: img == null ? Icon(Icons.person, size: radius) : null,
     );
   }
 }
