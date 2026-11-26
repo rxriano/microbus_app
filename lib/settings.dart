@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'models.dart';
+import 'plate.dart';
 
 class SettingsScreen extends StatelessWidget {
   final AppStore store;
@@ -60,6 +61,15 @@ class SettingsScreen extends StatelessWidget {
               title: const Text('الوضع الداكن'),
               value: store.dark,
               onChanged: store.setDark,
+            ),
+            ListTile(
+              leading: const Icon(Icons.badge),
+              title: const Text('بروفايل السواق'),
+              subtitle: Text(store.driverName.isEmpty
+                  ? 'اسم السواق ورقم اللوحة'
+                  : store.driverName),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => ProfileScreen(store))),
             ),
             const Divider(),
             const ListTile(title: Text('الخطوط (اضغط لاختيار الخط الحالي)')),
@@ -269,6 +279,70 @@ class _FareTablePageState extends State<FareTablePage> {
                 ),
               ),
             ),
+        ]),
+      );
+}
+
+class ProfileScreen extends StatefulWidget {
+  final AppStore store;
+  const ProfileScreen(this.store, {super.key});
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late final name = TextEditingController(text: widget.store.driverName);
+  late final letters = TextEditingController(text: widget.store.plateLetters);
+  late final digits = TextEditingController(text: widget.store.plateDigits);
+
+  @override
+  void dispose() {
+    name.dispose();
+    letters.dispose();
+    digits.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    widget.store.driverName = name.text.trim();
+    widget.store.plateLetters = letters.text.trim();
+    widget.store.plateDigits = digits.text.trim();
+    widget.store.changed();
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('بروفايل السواق')),
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          Center(
+              child: PlateView(
+                  letters: letters.text, digits: digits.text, scale: 1.2)),
+          const SizedBox(height: 20),
+          TextField(
+            controller: name,
+            decoration: const InputDecoration(
+                labelText: 'اسم السواق (الأول أو ثنائي)',
+                border: OutlineInputBorder()),
+            onChanged: (_) => _save(),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: letters,
+            maxLength: 3,
+            decoration: const InputDecoration(
+                labelText: 'حروف اللوحة (عربي)', border: OutlineInputBorder()),
+            onChanged: (_) => _save(),
+          ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: digits,
+            maxLength: 4,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'أرقام اللوحة', border: OutlineInputBorder()),
+            onChanged: (_) => _save(),
+          ),
         ]),
       );
 }

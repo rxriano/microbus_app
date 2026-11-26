@@ -73,6 +73,9 @@ class AppStore extends ChangeNotifier {
   List<Line> lines = [];
   int selected = 0;
   bool dark = false;
+  String driverName = '';
+  String plateLetters = '';
+  String plateDigits = '';
 
   AppStore(this.prefs) {
     final raw = prefs.getString('settings');
@@ -85,6 +88,9 @@ class AppStore extends ChangeNotifier {
         ];
         selected = (j['selected'] as int?) ?? 0;
         dark = (j['dark'] as bool?) ?? false;
+        driverName = (j['driverName'] as String?) ?? '';
+        plateLetters = (j['plateLetters'] as String?) ?? '';
+        plateDigits = (j['plateDigits'] as String?) ?? '';
       } catch (_) {
         lines = [];
       }
@@ -112,6 +118,9 @@ class AppStore extends ChangeNotifier {
         'lines': [for (final l in lines) l.toJson()],
         'selected': selected,
         'dark': dark,
+        'driverName': driverName,
+        'plateLetters': plateLetters,
+        'plateDigits': plateDigits,
       }),
     );
   }
@@ -224,6 +233,14 @@ class TripState extends ChangeNotifier {
       return null;
     }
     return 'باقي ${g.change}';
+  }
+
+  // Small tag on seats that paid together (only when 2+ passengers).
+  String? groupLabel(int seat) {
+    final r = active(seat);
+    if (r == null || r.groupId == null) return null;
+    final size = rides.where((x) => x.groupId == r.groupId).length;
+    return size > 1 ? 'م${r.groupId}' : null;
   }
 
   // ---- actions -------------------------------------------------------------

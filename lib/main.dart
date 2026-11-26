@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
+import 'plate.dart';
 import 'settings.dart';
 
 Future<void> main() async {
@@ -10,6 +11,13 @@ Future<void> main() async {
   final trip = TripState(store, prefs);
   runApp(MicrobusApp(store, trip));
 }
+
+ThemeData _theme(Brightness b) => ThemeData(
+      useMaterial3: true,
+      colorSchemeSeed: const Color(0xFFFFB300), // taxi yellow
+      brightness: b,
+      appBarTheme: const AppBarTheme(centerTitle: true),
+    );
 
 class MicrobusApp extends StatelessWidget {
   final AppStore store;
@@ -22,11 +30,8 @@ class MicrobusApp extends StatelessWidget {
         builder: (context, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
           themeMode: store.dark ? ThemeMode.dark : ThemeMode.light,
-          theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
-          darkTheme: ThemeData(
-              useMaterial3: true,
-              colorSchemeSeed: Colors.indigo,
-              brightness: Brightness.dark),
+          theme: _theme(Brightness.light),
+          darkTheme: _theme(Brightness.dark),
           builder: (c, child) =>
               Directionality(textDirection: TextDirection.rtl, child: child!),
           home: TripScreen(store, trip),
@@ -112,6 +117,7 @@ class _TripScreenState extends State<TripScreen> {
       padding: const EdgeInsets.all(4),
       child: Material(
         color: _color(n),
+        elevation: 2,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -139,6 +145,8 @@ class _TripScreenState extends State<TripScreen> {
                   const Text('وصل',
                       style:
                           TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                if (s.groupLabel(n) != null)
+                  Text(s.groupLabel(n)!, style: const TextStyle(fontSize: 10)),
                 if (badge != null)
                   Container(
                     margin: const EdgeInsets.only(top: 2),
@@ -169,6 +177,13 @@ class _TripScreenState extends State<TripScreen> {
             borderRadius: BorderRadius.circular(28),
           ),
           child: Column(children: [
+            Container(
+              height: 14,
+              margin: const EdgeInsets.fromLTRB(24, 0, 24, 6),
+              decoration: BoxDecoration(
+                  color: Colors.blueGrey.withAlpha(60),
+                  borderRadius: BorderRadius.circular(10)),
+            ),
             for (final row in kHiace)
               Expanded(
                 child: Row(children: [
@@ -207,6 +222,21 @@ class _TripScreenState extends State<TripScreen> {
   Widget _summary() => Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
         child: Column(children: [
+          if (widget.store.driverName.isNotEmpty ||
+              widget.store.plateLetters.isNotEmpty ||
+              widget.store.plateDigits.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                PlateView(
+                    letters: widget.store.plateLetters,
+                    digits: widget.store.plateDigits,
+                    scale: 0.6),
+                const SizedBox(width: 10),
+                Text(widget.store.driverName,
+                    style: const TextStyle(fontSize: 16)),
+              ]),
+            ),
           Text(
             s.running
                 ? 'المحطة الحالية: ${s.stations[s.current]}'
@@ -403,6 +433,28 @@ class _PaySheetState extends State<PaySheet> {
                       ),
                   ],
                   onChanged: (v) => setState(() => dests[n] = v),
+                ),
+              ),
+            ]),
+          if (seats.length > 1)
+            Row(children: [
+              const Text('الكل ← '),
+              Expanded(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: null,
+                  hint: const Text('نفس الوجهة لكل المختارين'),
+                  items: [
+                    for (final st in stations.skip(1))
+                      DropdownMenuItem(value: st, child: Text(st)),
+                  ],
+                  onChanged: (v) => setState(() {
+                    if (v == null) return;
+                    for (final n in seats) {
+                      final from = stations.indexOf(s.active(n)!.from);
+                      if (stations.indexOf(v) > from) dests[n] = v;
+                    }
+                  }),
                 ),
               ),
             ]),
